@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module>
+<ModulePrefs title="Anglicko - český slovník" height="200" scrolling="true" author="Václav Tolar" author_email="vaclav.tolar@gmail.com" desription="Anglicko - český a Česko - anglický online slovník. Okamžité vyhledávání při psaní výrazu k překladu. Automtické rozpoznávání směru překladu." thubmnail="http://vaclavtolar.cz/gadgets/img/british_flag.png" screenshot="http://vaclavtolar.cz/gadgets/img/british_flag.png">
+<Require feature="auth" />
+</ModulePrefs>
+<Content type="html"  view="default, canvas">
+<![CDATA[
+
+  <style>
+    .word{color:#E32119; font-weight:bold; padding-right:5;}
+    .translation{font-weight:bold; padding-left:5;}
+    .sms_icon{border:none;padding-left:10px;vertical-align:top;}
+    .title{color:black;margin-bottom:10px;border-bottom:solid;border-width:2px;border-color:#E32119;font-weight:bold;}
+    .go_back_link{color:black; margin-top:10px; display:block; font-size:100%;}
+    .link_a{border:none;text-decoration:none;}
+    .link_icon{border:none;vertical-align:bottom;}
+    
+  </style>
+
+  <script type="text/javascript" src="http://vaclavtolar.cz/gadgets/js/jquery-1.4.1.min.js"></script>
+
+  <script type="text/javascript">
+  
+  var initialized = false;
+  
+  var length = function(object) {
+      var count = 0;
+      for (var i in object) count++;
+      return count;
+  };
+  
+  function encodeCzech(word) {
+  
+    word = word.replace(/ě/g, '2222');
+    word = word.replace(/š/g, '3333');
+    word = word.replace(/č/g, '4444');
+    word = word.replace(/ř/g, '5555');
+    word = word.replace(/ž/g, '6666');
+    word = word.replace(/ý/g, '7777');
+    word = word.replace(/á/g, '8888');
+    word = word.replace(/í/g, '9999');
+    word = word.replace(/é/g, '0000');
+    word = word.replace(/ú/g, '10101010');
+    word = word.replace(/ů/g, '11111111');
+    word = word.replace(/ň/g, '12121212');
+    
+    return word;
+              
+  } 
+  
+  function getTranslation(word, inDirection, processResponse) {
+  
+    word = encodeCzech(word);
+          
+    var url = 'http://vaclavtolar.cz/bestdata';
+    
+    if (inDirection == 'ENCZ') {
+      url = 'http://vaclavtolar.cz/enczdata';
+    } else if (inDirection == 'CZEN') {
+      url = 'http://vaclavtolar.cz/czendata';
+    }
+    
+    url = url + '?prefix=' + word;
+    
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processResponse, params);
+
+  }
+  
+  function removeCzech(word) {
+
+    word = word.replace(/ě/g, 'e');
+    word = word.replace(/š/g, 's');
+    word = word.replace(/č/g, 'c');
+    word = word.replace(/ř/g, 'r');
+    word = word.replace(/ž/g, 'z');
+    word = word.replace(/ý/g, 'y');
+    word = word.replace(/á/g, 'a');
+    word = word.replace(/í/g, 'i');
+    word = word.replace(/é/g, 'e');
+    word = word.replace(/ú/g, 'u');
+    word = word.replace(/ů/g, 'u');
+    word = word.replace(/ň/g, 'n');
+    word = word.replace(/ť/g, 't');
+    word = word.replace(/ó/g, 'o');
+    word = word.replace(/ď/g, 'd');
+
+    word = word.replace(/Ě/g, 'E');
+    word = word.replace(/Š/g, 'S');
+    word = word.replace(/Č/g, 'C');
+    word = word.replace(/Ř/g, 'R');
+    word = word.replace(/Ž/g, 'Z');
+    word = word.replace(/Ý/g, 'Y');
+    word = word.replace(/Á/g, 'A');
+    word = word.replace(/Í/g, 'I');
+    word = word.replace(/É/g, 'E');
+    word = word.replace(/Ú/g, 'U');
+    word = word.replace(/Ů/g, 'U');
+    word = word.replace(/Ň/g, 'N');
+    word = word.replace(/Ť/g, 'T');
+    word = word.replace(/Ó/g, 'O');
+    word = word.replace(/Ď/g, 'D');
+    
+    return word;
+  }
+
+  function addSmsWord(word) {
+    $("#list").show();
+    $("#main_box").hide();
+    
+    var userId = _VF_GetUserId();
+    
+    word = removeCzech(word);
+        
+    var url = 'http://vaclavtolar.cz/addword?' + new Date().getTime() + '&userId=' + userId + '&word=' + encodeURIComponent(word);
+                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processSmsWords, params);    
+    
+    //getData();
+   
+  }
+  
+  function displaySmsSettings() {
+    $("#list").show();
+    $("#main_box").hide();
+    
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/getwords?' + new Date().getTime() + '&userId=' + userId;
+                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processSmsWords, params);    
+    
+   
+  }    
+  
+  function goBack() {    
+    $("#list").hide();
+    $("#help").hide();
+    $("#main_box").show();
+  }  
+
+  
+  function populateResult(translations, reverse) {  
+    var result = '';
+    var i = 1;
+    for (t in translations) {
+      var id = 'entry' + i;
+      i++;    
+      word = translations[t].t + '-' + translations[t].w;
+      if (reverse == true) {
+        result += '<div id=\"' + id + '\"><span class=\"word\">' + translations[t].t + '</span>-<span class=\"translation\">' + translations[t].w + '</span><a href=\"javascript:addSmsWord(\'' + word + '\')\"><img class=\"sms_icon\" title=\"Posílat do mobilu\" src=\"http://vaclavtolar.cz/gadgets/img/sms-ok.png\"/> </a></div>'  ;
+      } else {
+        result += '<div id=\"' + id + '\"><span class=\"word\">' + translations[t].w + '</span>-<span class=\"translation\">' + translations[t].t + '</span><a href=\"javascript:addSmsWord(\'' + word + '\')\"><img class=\"sms_icon\" title=\"Posílat do mobilu\" src=\"http://vaclavtolar.cz/gadgets/img/sms-ok.png\"/> </a></div>'  ;
+      }
+    }
+
+    return result;
+  }
+  
+  function translate() {
+      getTranslation($("#input_text").val(), $("input[@name='direction']:checked").val(), processResult);
+  }
+  
+  function displaySettings() {
+      $("#direction_box").toggle("fast"); 
+  }
+  
+  function processResult(translation) {
+      var data = gadgets.json.parse(translation.data);
+      $("#result_box").html(populateResult(data.result, data.reverse));
+      if (data.reverse) {
+        $("#result_note").html("cz->en");
+      } else {
+        $("#result_note").html("en->cz");
+      }
+  }
+  
+  function getData() {
+  
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/getwords?' + new Date().getTime() + '&userId=' + userId;
+                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processSmsWords, params);
+        
+  }
+  
+  function removeSmsWord(word) {
+    
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/removeword?' + new Date().getTime() + '&userId=' + userId + '&word=' + encodeURIComponent(word);
+                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processSmsWords, params);   
+    
+    //getData(); 
+    
+  } 
+  
+  function displayUpdatedList() {
+    $("#list").hide();
+    getData();
+  }  
+  
+  function processSmsWords(words) {
+    var result = '';
+    var data = gadgets.json.parse(words.data);
+    for (t in data.result) {
+      var id = 'smsEntry' + t;
+      word = data.result[t].w + '-' + data.result[t].t;    
+      result += '<div id=\"' + id + '\"><span class=\"word\">' + data.result[t].t + '</span>-<span class=\"translation\">' + data.result[t].w + '</span><a href=\"javascript:removeSmsWord(\'' + word + '\')\"><img class=\"sms_icon\" title=\"Už neposílat do mobilu\" src=\"http://vaclavtolar.cz/gadgets/img/sms-cancel.png\" </a></div>'  ;
+    }
+    
+    if (result == '') {
+      result = 'Nemáte vybrané žádná slovíčka pro posílání do mobilu';
+    }
+  
+    $("#sms_words").html(result);    
+      
+  }
+  
+  function displayHelp() {
+    $("#main_box").hide();
+    $("#list").hide();
+    $("#help").show();         
+  }  
+  
+  
+  $(document).ready(function() {
+  
+    getData();
+      
+    $("#input_text").keyup(function() {
+      translate();      
+    });    
+    
+    $("#input_text").click(function() {
+      if (initialized == false) {
+        $("#input_text").val("");
+        initialized = true;
+      }          
+    }); 
+    
+    $('input[name="direction"]').change(function() {
+      translate();      
+    });    
+    
+
+    
+       
+    
+    
+  });
+  
+  
+
+  </script>
+  
+
+
+  <div id="main_box" style="padding:10px"> 
+  <div id="input_box" style="text-align:center;"> 
+  <input type="text" id="input_text" value="Výraz k přeložení" />
+  
+  <a class="link_a" href="javascript:displaySettings()" >
+  <img class="link_icon" title="Nastavit směr překladu" alt="Nastavení" src="http://vaclavtolar.cz/gadgets/img/setting2.png" />
+  </a>
+  <a class="link_a" href="javascript:displaySmsSettings()">
+  <img class="link_icon" title="Zobrazit slovíčka posíláná do mobilu" alt="SMS nastavení" src="http://vaclavtolar.cz/gadgets/img/sms-dict.png" />
+  </a>
+  <a class="link_a" href="javascript:displayHelp()">
+  <img class="link_icon" title="Nápověda" alt="Nápověda" src="http://vaclavtolar.cz/gadgets/img/help-dict.png" />
+  </a>
+  
+  
+  <div id="direction_box" style="display:none; font-size:68%;">
+  <input type="radio" value="A" name="direction" checked="checked">Automatický</input>
+  <input type="radio" value="ENCZ"  name="direction">EN -> CZ</input>
+  <input type="radio" value="CZEN" name="direction">CZ -> EN</input>
+  </div>
+  </div>
+  <div id="result_note" style="font-weight:bold; font-size:68%; padding-top:10;"></div>
+  <div id="result_box"></div>  
+  </div>
+  
+  <div id="list" style="display:none; ">
+    <div class="title">Slovíčka k naučení posílaná do mobilu</div>
+    <div id="sms_words">
+    </div>    
+    <a class="go_back_link" href="javascript:goBack()" >Zpět</a>
+  </div>
+  
+  <div id="help" style="display:none; padding:10px;">
+    <div class="title">Jak to funguje?</div>
+    <div id="help_text" style="font-size:12px;">
+    <p>
+    Aplikace <b><Anglicko-český slovník</b> kromě standardního slovníku nabízí uživateli unikátní funkčnost posílání slovíček do
+    mobilu přes SMS. Uživatel si může z výsledku překladu vybrat slovíčka k naučení. Aplikace udržuje seznam takovýchto slovíček. 
+    Tyto slovíčka jsou zasílána uživateli do mobilu jako SMS zpráva. SMS se posílají každý den buď v 9:00 nebo 15:00.
+      </p>
+      <p>Veškeré chyby, přípomínky a náměty na vylepšení hlašte prosím prostřednictvím fóra <a style="display:inline; color:#AA3211;"  target="_blank" href="https://forum.park.vodafone.cz//showthread.php?t=287">zde</a></p>    
+    
+    </div>
+
+ 
+    
+    <a class="go_back_link" href="javascript:goBack()" >Zpět</a>
+  </div>   
+  
+  <script type="text/javascript">
+    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+  </script>
+  <script type="text/javascript">
+    try {
+      var pageTracker = _gat._getTracker("UA-12410596-1");
+      pageTracker._trackPageview();
+    } catch(err) {}
+  </script>    
+  
+           
+
+
+]]>
+</Content>
+</Module>

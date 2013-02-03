@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module>
+<ModulePrefs title="Akcie do mobilu" height="600" scrolling="yes" author="Václav Tolar" author_email="vaclav.tolar@gmail.com" >
+<Require feature="auth" />
+<Require feature="views" />
+<Require feature="dynamic-height" />
+</ModulePrefs>
+<Content type="html"  view="default, canvas">
+<![CDATA[
+
+  <style>    
+    table,th,td {
+      border: 1px solid #D6D3CD;
+      border-collapse:collapse;            
+      font-size:12px;    
+      font-weight:bold;  
+    }
+    tr {
+      
+    }
+    th {
+      background-color:#AA3211;
+      color:#FFFFFF;
+    }
+    th,td {
+      padding:3px;
+    } 
+    .td_number{
+      text-align:right
+    }
+    .unit {
+      font-weight:bold;
+      padding-left:2px;      
+    }
+    .positive {
+      color:#2D7E2F; 
+    }
+    .negative {
+      color:#BF3624;
+    }
+    tr.sms { 
+      background: #D6D7D8; 
+    }  
+   
+    tr.no_sms:hover {
+      background-color: #E6A445;
+    }      
+
+  </style>
+
+  
+  <script type="text/javascript" src="http://vaclavtolar.cz/gadgets/js/jquery-1.4.1.min.js"></script>
+  <script type="text/javascript" src="http://vaclavtolar.cz/gadgets/js/jquery.numeric.pack.js"></script>
+  
+  
+  <script type="text/javascript">
+  
+  var view = 'home';
+    
+  function getData() {
+  
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/sharesdata?' + new Date().getTime() + '&userId=' + userId;
+                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, processResult, params);
+        
+  }
+  
+  function processResult(shares) {
+      var data = gadgets.json.parse(shares.data);
+      var shares = data.shares
+      for (i in shares) {
+      
+        var changeClass = evalChange(shares[i].absChange);
+        
+        var row_class = "no_sms";
+        var sms_icon = "sms.png";
+        if ( shares[i].sms == '1' ) {
+          row_class = "sms";
+          sms_icon = "sms-send.png"
+        }
+
+        $("#shares_table").append(
+          "<tr class=\"" + row_class + "\"><td>" + shares[i].name + "</td><td class=\"td_number\">" + shares[i].endPrice + "</td><td class=\"td_number " + changeClass + "\" >" + shares[i].absChange + "</td><td class=\"td_number " + changeClass + "\" >" + shares[i].relChange + "</td><td class=\"td_number\" >" + shares[i].volume + "</td><td><a href=\"javascript:displaySmsSettings(" + i + ")\"><img title=\"Zobrazit nastavení SMS pro jednu akcii\" src=\"http://vaclavtolar.cz/gadgets/img/" + sms_icon + "\" style=\"border:0px;none;padding-left:4px;padding-right:4px\"></a></td></tr>" +
+          "<tr style=\"display:none\" id=\"row" + i+ "\"><td></td><td>" + getEditor(i, 'price') + "</td><td>" + getEditor(i, 'absChange') + "</td><td>" + getEditor(i, 'relChange') + "</td><td>" + getEditor(i, 'volume') + 
+          "</td><td><a href=\"javascript:saveRule(" + i + ",\'" + shares[i].code + "\')\"><img title=\"Objednat SMS pro jednu akcii\" src=\"http://vaclavtolar.cz/gadgets/img/sms-ok.png\" style=\"border:0px;none;padding-left:4px;padding-right:4px;display:block;\"></a>" +
+          "<a href=\"javascript:removeShareSms(" + i + ",\'" + shares[i].code + "\')\"><img title=\"Zrušit nastavení SMS pro jednu akcii\" src=\"http://vaclavtolar.cz/gadgets/img/sms-cancel.png\" style=\"border:0px;none;padding-left:4px;padding-right:4px;display:block;\"></a></td>" +
+          "</tr>"
+        );
+                              
+        var inputSel = '#' + "price_val" + i;
+        $(inputSel).numeric(",");
+        var inputSel = '#' + "absChange_val" + i;
+        $(inputSel).numeric(",");
+        var inputSel = '#' + "relChange_val" + i;
+        $(inputSel).numeric(",");
+        var inputSel = '#' + "volume_val" + i;
+        $(inputSel).numeric(",");
+        
+                   
+        for (j in shares[i].rules) {
+          var val = shares[i].rules[j].val;
+          var oper = parseOper(shares[i].rules[j].oper);
+          var param = parseParam(shares[i].rules[j].param);
+          var operSel = '#' + (param + '_oper' + i);
+          var paramSel = '#' + (param + '_val' + i)
+          $(operSel).val(oper);
+          $(paramSel).val(val);
+          
+        }          
+                    
+      }
+      $("#date").html(data.date);    
+                  
+      showTable(); 
+      _IG_AdjustIFrameHeight(); 
+      
+  }
+  
+  function evalChange(change) {
+    if (change.substr(0,1) == '-') return "negative";
+    else return "positive";
+  }
+  
+  function parseParam(param) {
+    if (param == 'END_PRICE') return 'price';
+    if (param == 'RELATIVE_CHANGE') return 'relChange';
+    if (param == 'ABSOLUTE_CHANGE') return 'absChange';
+    if (param == 'VOLUME') return 'volume';
+  }
+    
+  
+  function displaySmsSettings(i) {
+    $("#row" + i).toggle();
+
+    if( $("#big_table_link").is(":visible") == "true" ){
+        showLargeTable();
+    }
+    
+    _IG_AdjustIFrameHeight();
+   
+  }
+  
+
+  function orderShareSms(i, shareCode) {
+  
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/ordersms?' + new Date().getTime() + '&userId=' + userId + '&shareCode=' + shareCode + '&rules=';    
+                                    
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, null, params); 
+    
+    showMessage("SMS pro danou akcii objednána");    
+  }
+  
+  function removeShareSms(i, shareCode) {
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/removesms?' + new Date().getTime() + '&userId=' + userId + '&shareCode=' + shareCode + '&rules=';
+                                
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, null, params);   
+    
+    showMessage("SMS pro danou akcii byly zrušeny");
+  }  
+  
+  function orderAllSms() {
+  
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/ordersms?' + new Date().getTime() + '&userId=' + userId + '&shareCode=all&rules=';
+                                    
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, null, params);
+    
+    showMessage("SMS pro všechny akcie byly objednány"); 
+  }
+  
+  function removeAllSms() {
+    var userId = _VF_GetUserId();
+    
+    var url = 'http://vaclavtolar.cz/removesms?' + new Date().getTime() + '&userId=' + userId + '&shareCode=all&rules=';    
+                                    
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, null, params);   
+    
+    showMessage("SMS pro všechny akcie byly zrušeny");    
+  }   
+  
+  function convertOper(oper) {
+    if (oper == '<') return 'L';
+    if (oper == '>') return 'G';
+    if (oper == '=') return 'E';
+  } 
+  
+  function parseOper(oper) {
+    if (oper == 'LT') return '<';
+    if (oper == 'GT') return '>';
+    if (oper == 'EQ') return '=';
+  }   
+  
+  
+  
+  function saveRule(i, shareCode) {
+  
+    var userId = _VF_GetUserId();
+     
+    var priceVal = $("#price_val" + i).val();
+    var priceOper = convertOper($("#price_oper" + i).val());
+    
+    var absChangeVal = $("#absChange_val" + i).val();
+    var absChangeOper = convertOper($("#absChange_oper" + i).val());
+    
+    var relChangeVal = $("#relChange_val" + i).val();
+    var relChangeOper = convertOper($("#relChange_oper" + i).val());    
+    
+    var volumeVal = $("#volume_val" + i).val();
+    var volumeOper = convertOper($("#volume_oper" + i).val());
+    
+    // END_PRICE("ep"), START_PRICE("sp"), RELATIVE_CHANGE("rc"), ABSOLUTE_CHANGE("ac"), VOLUME("v");
+    var rule = "";
+    
+    if (priceVal) {
+      rule += "ep" + priceOper + priceVal + ":"; 
+    } 
+    
+    if (relChangeVal) {
+      rule += "rc" + relChangeOper + relChangeVal + ":";
+    }
+    
+    if (absChangeVal) {
+      rule += "ac" + absChangeOper + absChangeVal + ":"; 
+    }
+    
+    if (volumeVal) {
+      rule += "v" + volumeOper + volumeVal;
+    }
+    
+    if (rule) {
+      rule = rule.substr(0, rule.length-1);
+    }
+            
+    var url = 'http://vaclavtolar.cz/ordersms?' + new Date().getTime() + '&userId=' + userId + '&shareCode=' + shareCode + '&rules=' + rule;
+                        
+    var params = {};
+    params[gadgets.io.RequestParameters.METHOD] = gadgets.io.MethodType.GET;
+    params[gadgets.io.RequestParameters.REFRESH_INTERVAL] = 0;
+    gadgets.io.makeRequest(url, null, params);
+    
+    if (rule) {  
+      showMessage("SMS pro danou akcii za daných kritériích byla objednána");
+    } else {
+      showMessage("SMS pro danou akcii byla objednána");
+    }
+    
+  }
+  
+  function showMessage(text) {
+    $("#main_box").hide();
+    $("#message").html(text);
+    $("#message_box").show();  
+  }
+  
+  function reload() {
+    window.location.href=window.location.href
+  }
+  function goBack() {    
+    $("#main_box").show();
+    $("#help_box").hide();
+    $("#message_box").hide();
+    _IG_AdjustIFrameHeight();
+  }
+  
+  function getEditor(i, attr) {
+   
+    return "<select id=\"" + attr + "_oper" + i + "\" +  style=\"width:100%\" ><option>\<</option><option>\></option><input id=\"" + attr + "_val" + i + "\" + style=\"width:100%\" type=\"text\"></input></select>";
+  }
+  
+  
+  function showTable() {  
+            
+    var currView = gadgets.views.getCurrentView().getName();
+        
+    if (currView == 'canvas') {
+      showLargeTable();
+    } else {
+      showSmallTable();
+    }
+            
+    
+  }
+  
+  function showLargeTable() {
+        
+    $('th:nth-child(3)').show();  
+    $('td:nth-child(3)').show();
+    $('th:nth-child(5)').show();    
+    $('td:nth-child(5)').show();
+
+    $("#col_absChange").show();
+    $("#col_volume").show();
+            
+    $("#big_table_link").hide();
+    $("#small_table_link").show();
+    
+    
+  }  
+  
+  
+  function showSmallTable() {
+  
+    $('th:nth-child(3)').hide();  
+    $('td:nth-child(3)').hide();
+    $('th:nth-child(5)').hide();    
+    $('td:nth-child(5)').hide();
+
+    $("#col_absChange").hide();
+    $("#col_volume").hide();    
+    
+    $("#big_table_link").show();
+    $("#small_table_link").hide();
+            
+    
+         
+  }  
+  
+  
+  function goToView(dest) {
+    var supported_views = gadgets.views.getSupportedViews();
+    gadgets.views.requestNavigateTo(supported_views[dest]);
+  };
+  
+  function goToHelp() {
+    $("#main_box").hide();
+    $("#help_box").show();
+    _IG_AdjustIFrameHeight();  
+  }
+  
+
+   
+  gadgets.util.registerOnLoadHandler(getData);     
+  
+  
+
+  </script>
+  
+
+
+  <div id="main_box" style="padding:10px">
+  <div id="data_box">
+  <div id="header" style="font-size:14px; padding-bottom:3px;"> 
+  <span id="caption" style="font-weight:bold">Výsledky obchodování</span>
+  <span id="date" style="font-weight:bold;"></span>
+  <a id="big_table_link" href="javascript:goToView('canvas')" style="padding-left:5px"><img title="Zobrazit větší tabulku s daty" src="http://vaclavtolar.cz/gadgets/img/max.png" style="border:0px none;padding-left:4px;vertical-align:bottom;"/></a>
+  <a id="small_table_link" href="javascript:goToView('home')" style="padding-left:5px"><img title="Zobrazit menší tabulku s daty" src="http://vaclavtolar.cz/gadgets/img/min.png" style="border:0px none;padding-left:4px;vertical-align:bottom;"/></a>
+  <a id="small_table_link" href="javascript:goToHelp()" style="padding-left:5px"><img title="Nápověda" src="http://vaclavtolar.cz/gadgets/img/help.png" style="border:0px none;vertical-align:bottom;"/></a>    
+  </div>
+  <table id="shares_table">
+  <col id="col_name" style="width:12em;background-color: #F0F1F1;"/>
+  <col id="col_price" style="width:5em;background-color: #F0F1F1;"/>
+  <col id="col_absChange" style="width:4em;background-color: #F0F1F1;" />
+  <col id="col_relChange" style="width:4em;background-color: #F0F1F1;"/>
+  <col id="col_volume" style="width:6em;background-color: #F0F1F1;"/>
+  <col id="col_sms" style="background-color: #F0F1F1;"/>
+  <tr>
+    <th >Název</th>
+    <th>Cena<span class="unit">[Kč]<span></th>
+    <th>Změna<span class="unit">[Kč]<span></th>
+    <th>Změna<span class="unit">[%]<span></th>
+    <th>Objem<span class="unit">[tis.Kč]<span></th>
+    <th></th>
+  </tr>
+  </table>
+  </div>
+  <div style="padding-top:3px; font-size:12px; font-weight:bold;">SMS se všemi akciemi:
+  <a id="order_all_sms_link" href="javascript:orderAllSms()"><img title="Objednat SMS zprávy se všemi akciemi (cca. 4 SMS)" src="http://vaclavtolar.cz/gadgets/img/sms-ok.png" style="border:0px none;padding-left:4px;padding-right:4px;vertical-align:bottom;"/></a>
+  <a id="cancel_all_sms_link" href="javascript:removeAllSms()"><img title="Zrušit SMS zprávy se všemi akciemi" src="http://vaclavtolar.cz/gadgets/img/sms-cancel.png" style="border:0px none;padding-left:4px;padding-right:4px;vertical-align:bottom;"/></a>
+  </div>
+  
+  </div>
+  
+  <div id="message_box" style="display:none;text-align:center;font-size=14px;padding-top:15px">
+    <div id="message" style="font-weight:bold;padding:10px;"></div>
+    <a id="go_back_link" href="javascript:goBack()" style="color:#AA3211;font-weight:bold">Zpět</a>
+  </div>
+  
+  <div id="help_box" style="display:none; font-size:12px; overflow:auto; padding:10px;">
+  
+  <h3 style="color:#AA3211;">Jak to funguje?</h3>
+  
+  <p>Aplikace <b>Akcie do mobilu</b> zobrazuje aktuální ceny akcií obchodovaných na Burze cenných papírů Praha. Data se aktualizují každý pracovní den v 20:00.</p>
+  <p>Uživatel má možnost objednat si SMS zprávy s aktuální cenou akcií a její změnou oproti minulému dni. <b>SMS se odesílají každý pracovní den ve 20:00</b> Je možné si objednat informace o každé akcii zvlášť nebo též o všech akciích najednou (to představuje 4 SMS zprávy).</p>
+  <p><b>U každé akcie lze specifikovat, za jakých podmínek je SMS zasílána.</b> U všech parametrů (<i>cena, změna v Kč, změna v %, objem</i>) je možné stanovit pravidlo určující zda se má SMS poslat.
+  Uživatel stanoví referenční hodnotu a relaci (větší nebo mensí) vůči aktuální hodnotě. Pokud je tato relace splněna, je daná akcie zařazena do seznamu akcií zaslaných přes SMS.
+  U parametrů <i>Změna v Kč</i> a <i>Změna v %</i> se relace vyhodnocuje vůči absolutní aktuální hodnotě. Např. pokud uživatel stanoví pravidlo u <i>Změny v %</i> >5,00 znamená to, že SMS se pošlě jak při změně +5% a větší, tak i 
+  při změně -5% a menší. <b>Pokud uživatel kritéria nevyplní a akcii si objedná, SMS se pošle vždy.</b>  
+  </p>
+  <p>Objednané akcie jsou v tabulce graficky zvýrazněny.</p>
+  
+  <h3 style="color:#AA3211;">Zpětná vazba</h3>
+  <p>Veškeré chyby, přípomínky a náměty na vylepšení hlašte prosím prostřednictvím fóra <a style="display:inline; color:#AA3211;"  target="_blank" href="https://forum.park.vodafone.cz//showthread.php?t=322">zde</a></p> 
+  
+  
+  <a id="go_back_link" href="javascript:goBack()" style="color:#AA3211;font-weight:bold">Zpět</a>    
+  </div>
+  
+  <script type="text/javascript">
+  var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+  document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+  </script>
+  <script type="text/javascript">
+  try {
+  var pageTracker = _gat._getTracker("UA-12410596-2");
+  pageTracker._trackPageview();
+  } catch(err) {}</script>
+
+
+]]>
+</Content>
+</Module>
